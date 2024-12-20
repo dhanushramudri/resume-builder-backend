@@ -1,0 +1,41 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Next.js build output
+.next
+/out
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# IDE/Editor directories and files
+.vscode
+.idea
+
+# VSCode settings
+.vscode/
+
+# JetBrains IDEs
+.idea/
+
+# Build artifacts
+/dist
+/.next
+/.turbo
