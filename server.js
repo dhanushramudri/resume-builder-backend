@@ -100,6 +100,10 @@ const userController = {
 };
 
 // Routes
+app.get("/", (req, res) => {
+  res.send("This is backend"); // Display the message on the root route
+});
+
 app.post("/user", userController.createUser); // Route for creating or updating a user
 app.get("/user/:id", userController.getUser); // Route for fetching a user by ID
 
