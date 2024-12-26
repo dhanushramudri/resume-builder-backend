@@ -8,13 +8,18 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+// Updated CORS configuration
 app.use(
   cors({
     origin: [
       "http://localhost:3000",
       "http://localhost:3001",
       "http://localhost:3002",
+      "https://resume-builder-9chb.vercel.app", // Added production URL
     ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
