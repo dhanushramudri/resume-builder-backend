@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -5,75 +6,46 @@ require("dotenv").config();
 
 const app = express();
 
-// Set MongoDB timeouts
-mongoose.set("socketTimeoutMS", 30000);
-mongoose.set("serverSelectionTimeoutMS", 30000);
-
-// Middleware setup
+// Middleware
+app.use(express.json());
+// Increase payload size limits
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// CORS configuration
+// Updated CORS configuration
 app.use(
   cors({
-    origin: "*", // Allow all origins
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "https://resume-builder-9chb.vercel.app", // Added production URL
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
   })
 );
 
-// Additional CORS headers middleware
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Content-Length, X-Requested-With"
-  );
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-  next();
-});
-
-// Request timeout middleware
-app.use((req, res, next) => {
-  req.setTimeout(25000);
-  res.setTimeout(25000);
-  next();
-});
-
 // MongoDB connection
 console.log("Connecting to MongoDB with URI:", process.env.MONGODB_URI);
-mongoose
-  .connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 30000,
-    socketTimeoutMS: 30000,
-    connectTimeoutMS: 30000,
-  })
+const db = mongoose
+  .connect(process.env.MONGODB_URI)
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.log("Error connecting to MongoDB:", err));
 
 const database = mongoose.connection;
+
 const userCollection = database.collection("userdetails");
 
-// Updated User Schema with image support
+// MongoDB Models
 const User = mongoose.model(
   "User",
   new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     filledForm: { type: Boolean, default: false },
-    profileImage: { type: String }, // For storing base64 images
   })
 );
 
-// User Controller
 const userController = {
   createUser: async (req, res) => {
     try {
@@ -81,8 +53,8 @@ const userController = {
         "Received request to create or update user with data:",
         req.body
       );
-      const { userId, filledForm, profileImage } = req.body;
 
+      const { userId, filledForm } = req.body;
       if (!userId) {
         console.log("Error: No userId provided");
         return res.status(400).json({ error: "UserId is required" });
@@ -94,19 +66,16 @@ const userController = {
       if (existingUser) {
         console.log("User already exists with userId:", userId);
         existingUser.filledForm = filledForm;
-        if (profileImage) {
-          existingUser.profileImage = profileImage;
-        }
         await existingUser.save();
         console.log("User updated successfully:", existingUser);
         return res.status(200).json({
-          message: "User updated successfully",
+          message: "User already exists, but form updated",
           user: existingUser,
         });
       }
 
       console.log("Creating new user with userId:", userId);
-      const newUser = new User({ userId, filledForm, profileImage });
+      const newUser = new User({ userId, filledForm });
       await newUser.save();
       console.log("User created successfully:", newUser);
 
@@ -143,7 +112,10 @@ const userController = {
   },
 };
 
-// User Details Controller
+app.get("/", (req, res) => {
+  res.send("This is backend");
+});
+
 const userDetailsController = {
   createUserDetails: async (req, res) => {
     try {
@@ -162,12 +134,13 @@ const userDetailsController = {
 
       if (userDetails) {
         console.log("Updating existing user details for userId:", userId);
+        userDetails.resumeData = resumeData;
+        console.log(userDetails.resumeData.volunteer);
         await userCollection.updateOne(
           { userId },
           { $set: { resumeData } },
           { upsert: true }
         );
-        userDetails = await userCollection.findOne({ userId });
         console.log("User details updated successfully:", userDetails);
         return res.status(200).json({
           message: "User details updated successfully",
@@ -176,12 +149,11 @@ const userDetailsController = {
       }
 
       console.log("Creating new user details for userId:", userId);
+
       await userCollection.insertOne({
         userId,
         resumeData,
       });
-
-      userDetails = await userCollection.findOne({ userId });
       console.log("User details created successfully:", userDetails);
 
       res.status(201).json({
@@ -229,15 +201,6 @@ app.post("/user", userController.createUser);
 app.get("/user/:id", userController.getUser);
 app.post("/user-details", userDetailsController.createUserDetails);
 app.get("/user-details/:id", userDetailsController.getUserDetails);
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    error: "Internal Server Error",
-    message: err.message,
-  });
-});
 
 // Start the server
 const PORT = process.env.PORT || 5001;
